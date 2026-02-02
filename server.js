@@ -5,35 +5,48 @@ require('dotenv').config();
 
 const app = express();
 
-// Middleware
-app.use(cors());
+// 1. Konfigurasi CORS yang lebih spesifik
+const corsOptions = {
+  origin: '*', // Di tahap development bisa pakai '*', tapi lebih aman masukkan domain frontend-mu nanti
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token'], // WAJIB ada x-auth-token
+  credentials: true
+};
+
+// 2. Gunakan Middleware CORS sebelum Route lainnya
+app.use(cors(corsOptions));
 app.use(express.json());
 
-// Cek Koneksi MongoDB
+// 3. Koneksi MongoDB (Tanpa opsi deprecated)
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MongoDB Connected: Tabungan Bersama DB"))
   .catch(err => console.error("❌ MongoDB Connection Error:", err));
 
-// Route Testing (Biar kalau dibuka di browser muncul tulisan)
+// Route Testing
 app.get('/', (req, res) => {
-  res.send('API Tabungan Bersama Running...');
+  res.json({ message: 'API Tabungan Bersama Running...', status: 'Healthy' });
 });
 
-// Import Routes
+// 4. Import & Gunakan Routes
 const authRoutes = require('./routes/authRoutes');
 const ledgerRoutes = require('./routes/ledgerRoutes');
 
-// Gunakan Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/ledger', ledgerRoutes);
 
-// Global Error Handler (Opsional, biar server ga mati kalau ada error mendadak)
+// 5. Global Error Handler
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).send({ message: 'Ada masalah pada server!' });
+  res.status(500).json({ error: 'Ada masalah pada server!', detail: err.message });
 });
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`🚀 Server berjalan di: http://localhost:${PORT}`);
-});
+// Ekspor untuk Vercel (Penting!)
+module.exports = app; 
+
+// Jalankan server jika bukan di environment serverless
+if (process.env.NODE_ENV !== 'production') {
+  const PORT = process.env.PORT || 5000;
+  app.listen(PORT, () => {
+    console.log(`🚀 Server berjalan di: http://localhost:${PORT}`);
+  });
+}
